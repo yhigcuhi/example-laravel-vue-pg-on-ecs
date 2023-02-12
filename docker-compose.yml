@@ -1,0 +1,113 @@
+# docker compose yml としての書き方の バージョン
+version: '3.8'
+
+# 立てるコンテナ一覧
+services:
+  # メインアプリ
+  main-app:
+    # 管理コンテナ名
+    container_name: ${APP_NAME}-main-app
+    # Dockerファイルにて 定義
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    volumes:
+      - ./main-app-src/:/var/www/html
+    # 利用ポート
+    ports:
+      # 一旦 フロントエンド vite使うな感じで
+      - ${VITE_PORT:-3000}:5173
+    # 環境設定値設定
+    environment:
+      # アプリ系
+      - APP_NAME=${APP_NAME}
+      - APP_URL=${APP_URL:-http://localhost:8080}
+      - APP_ENV=${APP_ENV:-local}
+      # DB 接続定義
+      - DB_CONNECTION=${DB_CONNECTION:-pgsql}
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_DATABASE=${DB_DATABASE:-sample_app}
+      - DB_USERNAME=${DB_USERNAME:-tester}
+      - DB_PASSWORD=${DB_PASSWORD:-zaq12wsx}
+  # メインアプリ WEBサーバー
+  main-app-web:
+    # 管理コンテナ名
+    container_name: ${APP_NAME}-main-app-web
+    # Dockerファイルにて 定義
+    build:
+      context: .
+      dockerfile: ./docker/web/Dockerfile
+    # 利用ポート
+    ports:
+      - ${APP_PORT:-8080}:80
+    # 依存関係
+    depends_on:
+      - main-app
+    # 場所
+    volumes:
+      - ./main-app-src/:/var/www/html
+  # 管理画面
+  admin-app:
+    # 管理コンテナ名
+    container_name: ${APP_NAME}-admin-app
+    # Dockerファイルにて 定義
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    volumes:
+      - ./admin-app-src/:/var/www/html
+    # 利用ポート
+    ports:
+      # 一旦 フロントエンド vite使うな感じで
+      - ${ADMIN_VITE_PORT:-3001}:5173
+    # 環境設定値設定
+    environment:
+      # アプリ系
+      - APP_NAME=${APP_NAME}-admin
+      - APP_URL=${APP_URL:-http://localhost:4848}
+      - APP_ENV=${APP_ENV:-local}
+      # DB 接続定義
+      - DB_CONNECTION=${DB_CONNECTION:-pgsql}
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_DATABASE=${DB_DATABASE:-sample_app}
+      - DB_USERNAME=${DB_USERNAME:-tester}
+      - DB_PASSWORD=${DB_PASSWORD:-zaq12wsx}
+  # 管理画面 WEBサーバー
+  admin-app-web:
+    # 管理コンテナ名
+    container_name: ${APP_NAME}-app-web
+    # Dockerファイルにて 定義
+    build:
+      context: .
+      dockerfile: ./docker/web/Dockerfile
+    # 利用ポート
+    ports:
+      - ${ADMIN_PORT:-4848}:80
+    # 依存関係
+    depends_on:
+      - admin-app
+    # 場所
+    volumes:
+      - ./admin-app-src/:/var/www/html
+  # db (共通) TODO:開発だけにしたい
+  db-dev:
+    # 管理コンテナ名
+    container_name: ${APP_NAME}-db
+    # イメージ posgres TODO:一旦設定不明なので imageで
+    image: postgres:13
+    hostname: ${DB_HOST:-postgres}
+    ports:
+      - ${DB_PORT:-5432}:5432
+    # postgreSQL へのオプション (PGDATA: データベースの物理的な格納場所の指定 POSTGRES_INITDB_ARGS起動引数)
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-tester}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-zaq12wsx}
+      POSTGRES_DB: ${DB_DATABASE:-sample_app}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    # データ保存場所やログ残す場所:postgresシステムとしてのパス (/var/lib/postgresql/data) (ショートカットリンク先のパス:ショートカットリンクパス)
+    volumes:
+      - ./db/postgres:/var/lib/postgresql/data
+      - ./db/logs:/var/log
